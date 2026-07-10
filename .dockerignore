@@ -9,7 +9,8 @@ dist
 apps/api/prisma/**/*.db
 apps/api/prisma/**/*.db-journal
 apps/api/uploads
-apps/mobile
+apps/mobile/**
+!apps/mobile/package.json
 coverage
 *.log
 .env
