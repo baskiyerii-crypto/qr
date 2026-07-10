@@ -26,10 +26,7 @@ fi
 
 if [ "$should_seed" = "true" ]; then
   echo "Running database seed..."
-  if ! ./node_modules/.bin/prisma db seed; then
-    echo "Prisma seed failed, retrying with ts-node..."
-    node ../../node_modules/ts-node/dist/bin.js --transpile-only prisma/seed.ts
-  fi
+  node --experimental-strip-types prisma/seed.ts
 fi
 
 echo "Starting API..."
