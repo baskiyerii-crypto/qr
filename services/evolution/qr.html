@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Personel — WhatsApp QR</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 420px;
+      margin: 2rem auto;
+      padding: 1rem;
+      text-align: center;
+      background: #f8fafc;
+    }
+    h1 { font-size: 1.25rem; color: #0f172a; }
+    p { color: #64748b; font-size: 0.9rem; }
+    #qr {
+      margin: 1.5rem auto;
+      min-height: 280px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 1rem;
+    }
+    #qr img { max-width: 100%; border-radius: 8px; }
+    .status { font-weight: 600; margin-top: 1rem; }
+    .ok { color: #16a34a; }
+    .err { color: #dc2626; }
+    button {
+      margin-top: 1rem;
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    button:hover { background: #1d4ed8; }
+  </style>
+</head>
+<body>
+  <h1>WhatsApp Bağlantısı</h1>
+  <p>Instance: <strong id="instance"></strong></p>
+  <div id="qr"><span>QR yükleniyor…</span></div>
+  <p class="status" id="status"></p>
+  <button type="button" onclick="loadQr()">QR Yenile</button>
+
+  <script>
+    const API = 'http://localhost:8080';
+    const API_KEY = 'qr_evolution_dev_key_7f3a9b2c';
+    const INSTANCE = 'qr-personel';
+
+    document.getElementById('instance').textContent = INSTANCE;
+
+    async function loadQr() {
+      const qrEl = document.getElementById('qr');
+      const statusEl = document.getElementById('status');
+      qrEl.innerHTML = '<span>QR yükleniyor…</span>';
+      statusEl.textContent = '';
+      statusEl.className = 'status';
+
+      try {
+        const res = await fetch(`${API}/instance/connect/${INSTANCE}`, {
+          headers: { apikey: API_KEY },
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (data.instance?.state === 'open') {
+          statusEl.textContent = 'Bağlı — WhatsApp hazır.';
+          statusEl.className = 'status ok';
+          qrEl.innerHTML = '<span style="color:#16a34a;font-size:3rem">✓</span>';
+          return;
+        }
+
+        const base64 = data.base64 || data.qrcode?.base64 || data.code;
+        if (base64) {
+          const src = base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`;
+          qrEl.innerHTML = `<img src="${src}" alt="WhatsApp QR" />`;
+          statusEl.textContent = 'Telefondan WhatsApp → Bağlı Cihazlar → QR tara';
+          statusEl.className = 'status';
+        } else {
+          throw new Error(data.message || data.error || 'QR alınamadı');
+        }
+      } catch (e) {
+        qrEl.innerHTML = '<span class="err">QR alınamadı</span>';
+        statusEl.textContent = e.message || String(e);
+        statusEl.className = 'status err';
+      }
+    }
+
+    loadQr();
+    setInterval(loadQr, 15000);
+  </script>
+</body>
+</html>

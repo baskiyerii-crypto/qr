@@ -1,0 +1,1254 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  MARKETER
+  RESELLER
+  COMPANY_ADMIN
+  HR_MANAGER
+  REGIONAL_MANAGER
+  BRANCH_MANAGER
+  EMPLOYEE
+}
+
+enum AttendanceType {
+  CHECK_IN
+  CHECK_OUT
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  UNPAID
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum DeviceStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ConversationType {
+  DIRECT
+  BROADCAST
+  GROUP
+}
+
+enum SurveyStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum SurveyQuestionType {
+  SINGLE_CHOICE
+  SHORT_TEXT
+}
+
+enum PayrollStatus {
+  DRAFT
+  CALCULATED
+  APPROVED
+  PAID
+}
+
+enum WorkScheduleMode {
+  SHIFT
+  STANDARD
+}
+
+enum ResellerApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum ResellerApplicationEventType {
+  SUBMITTED
+  REVIEW_STARTED
+  APPROVED
+  REJECTED
+  WHATSAPP_SENT
+  IYZICO_REGISTERED
+  IYZICO_PENDING
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PayoutFrequency {
+  INSTANT
+  WEEKLY
+  MONTHLY
+}
+
+enum IyzicoOnboardingStatus {
+  PENDING
+  REGISTERED
+  FAILED
+}
+
+enum FeedbackThreadType {
+  COMPANY_INTERNAL
+  RESELLER_PLATFORM
+}
+
+enum FeedbackThreadStatus {
+  OPEN
+  ANSWERED
+  CLOSED
+}
+
+enum AttendanceStatus {
+  APPROVED
+  PENDING
+  REJECTED
+}
+
+enum BranchTransferType {
+  PERMANENT
+  TEMPORARY
+}
+
+enum BranchTransferStatus {
+  ACTIVE
+  PENDING
+  REJECTED
+  ENDED
+}
+
+enum JobPostingStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+enum JobApplicationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+}
+
+enum JobApplicationEventType {
+  SUBMITTED
+  REVIEW_STARTED
+  INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+  WHATSAPP_SENT
+}
+
+enum JobFormFieldType {
+  TEXT
+  TEXTAREA
+  SINGLE_CHOICE
+  MULTI_CHOICE
+  NUMBER
+  DATE
+  FILE_CV
+}
+
+enum StaffRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum AdvanceRequestType {
+  ADVANCE
+  EXPENSE
+}
+
+model Company {
+  id                  String   @id @default(uuid())
+  name                String
+  slug                String   @unique
+  qrToken             String   @unique @default(uuid())
+  resellerId          String?
+  marketerId          String?
+  monthlySubscriptionFee Float @default(299)
+  deviceBindingEnabled Boolean @default(true)
+  dataRetentionDays   Int      @default(730)
+  overtimeMultiplier  Float    @default(1.5)
+  workScheduleMode    WorkScheduleMode @default(STANDARD)
+  standardWorkDays    String   @default("1,2,3,4,5")
+  standardStartTime   String   @default("09:00")
+  standardEndTime     String   @default("18:00")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  reseller      Reseller? @relation(fields: [resellerId], references: [id], onDelete: SetNull)
+  marketer      Marketer? @relation(fields: [marketerId], references: [id], onDelete: SetNull)
+  branches      Branch[]
+  departments   Department[]
+  users         User[]
+  employees     Employee[]
+  shiftTemplates ShiftTemplate[]
+  holidays      Holiday[]
+  leaveRequests LeaveRequest[]
+  attendanceRecords AttendanceRecord[]
+  tasks         Task[]
+  announcements Announcement[]
+  conversations Conversation[]
+  payrollRuns   PayrollRun[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  kvkkConsents  KvkkConsent[]
+  subscription  CompanySubscription?
+  payments      PaymentTransaction[]
+  feedbackThreads FeedbackThread[]
+  branchTransfers BranchTransfer[]
+  jobPostings   JobPosting[]
+  jobApplications JobApplication[]
+  jobFormTemplates JobFormTemplate[]
+  shiftSwapRequests ShiftSwapRequest[]
+  overtimeRequests OvertimeRequest[]
+  advanceRequests AdvanceRequest[]
+  employeeDocuments EmployeeDocument[]
+  surveys           Survey[]
+
+  @@index([resellerId])
+  @@index([marketerId])
+}
+
+model Branch {
+  id              String   @id @default(uuid())
+  companyId       String
+  name            String
+  address         String?
+  latitude        Float
+  longitude       Float
+  geofenceRadiusM Int      @default(200)
+  isActive        Boolean  @default(true)
+  qrSecret        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees         Employee[]
+  attendanceRecords AttendanceRecord[]
+  assignments       BranchAssignment[]
+  jobPostings       JobPosting[]
+  transfersFrom     BranchTransfer[]   @relation("TransferFrom")
+  transfersTo       BranchTransfer[]   @relation("TransferTo")
+
+  @@index([companyId])
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  createdAt DateTime @default(now())
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees Employee[]
+
+  @@index([companyId])
+}
+
+model User {
+  id           String   @id @default(uuid())
+  publicId     String   @unique
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  companyId    String?
+  firstName    String
+  lastName     String
+  phone        String?
+  pushToken    String?
+  isActive     Boolean  @default(true)
+  refreshToken String?
+  inviteToken  String?  @unique
+  mustChangePassword Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company          Company?          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee         Employee?
+  reseller         Reseller?
+  marketer         Marketer?
+  auditLogs        AuditLog[]        @relation("AuditActor")
+  sentMessages     Message[]         @relation("MessageSender")
+  announcements    Announcement[]
+  reviewedLeaves   LeaveRequest[]    @relation("LeaveReviewer")
+  notifications    Notification[]
+  feedbackThreads  FeedbackThread[]  @relation("FeedbackCreator")
+  feedbackMessages FeedbackMessage[]
+  branchAssignments BranchAssignment[]
+  createdConversations Conversation[] @relation("ConversationCreator")
+  conversationParticipations ConversationParticipant[] @relation("ConversationParticipantUser")
+  createdSurveys Survey[] @relation("SurveyCreator")
+
+  @@index([companyId])
+  @@index([email])
+  @@index([publicId])
+}
+
+model Employee {
+  id            String    @id @default(uuid())
+  companyId     String
+  userId        String    @unique
+  branchId      String?
+  departmentId  String?
+  managerId     String?
+  position      String?
+  monthlySalary Decimal?
+  hireDate      DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch             Branch?             @relation(fields: [branchId], references: [id])
+  department         Department?         @relation(fields: [departmentId], references: [id])
+  manager            Employee?           @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  directReports      Employee[]          @relation("EmployeeManager")
+  devices            EmployeeDevice[]
+  shifts             EmployeeShift[]
+  attendanceRecords  AttendanceRecord[]
+  leaveRequests      LeaveRequest[]
+  leaveBalances      LeaveBalance[]
+  taskAssignments    TaskAssignment[]
+  announcementReads  AnnouncementRead[]
+  conversationParticipants ConversationParticipant[]
+  sentMessages       Message[]           @relation("EmployeeSender")
+  payrollLineItems   PayrollLineItem[]
+  notifications      Notification[]
+  kvkkConsents       KvkkConsent[]
+  timesheetEntries   TimesheetEntry[]
+  branchTransfers    BranchTransfer[]
+  documents          EmployeeDocument[]
+  shiftSwapRequests  ShiftSwapRequest[]  @relation("SwapRequester")
+  shiftSwapTargets   ShiftSwapRequest[]  @relation("SwapTarget")
+  overtimeRequests   OvertimeRequest[]
+  advanceRequests    AdvanceRequest[]
+  surveyAssignments  SurveyAssignment[]
+  surveyResponses    SurveyResponse[]
+
+  @@index([companyId])
+  @@index([branchId])
+  @@index([managerId])
+}
+
+model EmployeeDevice {
+  id         String       @id @default(uuid())
+  employeeId String
+  deviceId   String
+  deviceName String?
+  status     DeviceStatus @default(PENDING)
+  approvedAt DateTime?
+  createdAt  DateTime     @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, deviceId])
+  @@index([employeeId])
+}
+
+model ShiftTemplate {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  dayOfWeek Int
+  startTime String
+  endTime   String
+  createdAt DateTime @default(now())
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeShifts EmployeeShift[]
+
+  @@index([companyId])
+}
+
+model EmployeeShift {
+  id              String   @id @default(uuid())
+  employeeId      String
+  shiftTemplateId String
+  effectiveFrom   DateTime @default(now())
+  effectiveTo     DateTime?
+
+  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shiftTemplate ShiftTemplate @relation(fields: [shiftTemplateId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+}
+
+model Holiday {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  date      DateTime
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, date])
+}
+
+model AttendanceRecord {
+  id              String         @id @default(uuid())
+  companyId       String
+  employeeId      String
+  branchId        String
+  type            AttendanceType
+  serverTimestamp DateTime       @default(now())
+  clientTimestamp DateTime
+  latitude        Float
+  longitude       Float
+  accuracy        Float?
+  withinGeofence  Boolean
+  deviceId        String?
+  notes           String?
+  isManual        Boolean        @default(false)
+  manualReason    String?
+  status          AttendanceStatus @default(APPROVED)
+  isOffBranch     Boolean        @default(false)
+  reviewedById    String?
+  reviewedAt      DateTime?
+  reviewNote      String?
+  createdAt       DateTime       @default(now())
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  branch   Branch   @relation(fields: [branchId], references: [id])
+
+  @@index([companyId, employeeId, serverTimestamp])
+  @@index([companyId, serverTimestamp])
+  @@index([companyId, status])
+}
+
+model LeaveRequest {
+  id           String      @id @default(uuid())
+  companyId    String
+  employeeId   String
+  type         LeaveType
+  status       LeaveStatus @default(PENDING)
+  startDate    DateTime
+  endDate      DateTime
+  reason       String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewedBy User?    @relation("LeaveReviewer", fields: [reviewedById], references: [id])
+
+  @@index([companyId, status])
+  @@index([employeeId])
+}
+
+model LeaveBalance {
+  id         String    @id @default(uuid())
+  employeeId String
+  type       LeaveType
+  year       Int
+  totalDays  Float
+  usedDays   Float     @default(0)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, type, year])
+}
+
+model TimesheetEntry {
+  id              String   @id @default(uuid())
+  employeeId      String
+  date            DateTime
+  plannedMinutes  Int      @default(0)
+  workedMinutes   Int      @default(0)
+  lateMinutes     Int      @default(0)
+  earlyLeaveMinutes Int    @default(0)
+  overtimeMinutes Int      @default(0)
+  missingMinutes  Int      @default(0)
+  isAbsent        Boolean  @default(false)
+  isOnLeave       Boolean  @default(false)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+  @@index([employeeId, date])
+}
+
+model Task {
+  id          String       @id @default(uuid())
+  companyId   String
+  title       String
+  description String?
+  priority    TaskPriority @default(NORMAL)
+  dueDate     DateTime
+  endDate     DateTime?
+  createdById String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignments TaskAssignment[]
+
+  @@index([companyId])
+}
+
+model TaskAssignment {
+  id          String     @id @default(uuid())
+  taskId      String
+  employeeId  String
+  status      TaskStatus @default(PENDING)
+  completedAt DateTime?
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  task     Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, employeeId])
+  @@index([employeeId, status])
+}
+
+model Announcement {
+  id           String    @id @default(uuid())
+  companyId    String
+  title        String
+  body         String
+  requiresAck  Boolean   @default(false)
+  deadline     DateTime?
+  createdById  String
+  createdAt    DateTime  @default(now())
+
+  company   Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User               @relation(fields: [createdById], references: [id])
+  targets   AnnouncementTarget[]
+  reads     AnnouncementRead[]
+
+  @@index([companyId])
+}
+
+model AnnouncementTarget {
+  id             String  @id @default(uuid())
+  announcementId String
+  employeeId     String?
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@index([announcementId])
+}
+
+model AnnouncementRead {
+  id             String    @id @default(uuid())
+  announcementId String
+  employeeId     String
+  readAt         DateTime?
+  acknowledgedAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, employeeId])
+}
+
+model Conversation {
+  id              String           @id @default(uuid())
+  companyId       String
+  type            ConversationType @default(DIRECT)
+  name            String?
+  subject         String?
+  broadcastId     String?
+  createdByUserId String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  company      Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy    User?                     @relation("ConversationCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([companyId])
+}
+
+model ConversationParticipant {
+  id             String    @id @default(uuid())
+  conversationId String
+  employeeId     String?
+  userId         String?
+  lastReadAt     DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  employee     Employee?    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  user         User?        @relation("ConversationParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, employeeId])
+  @@unique([conversationId, userId])
+}
+
+model Survey {
+  id          String       @id @default(uuid())
+  companyId   String
+  title       String
+  description String?
+  status      SurveyStatus @default(DRAFT)
+  deadline    DateTime?
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy   User               @relation("SurveyCreator", fields: [createdById], references: [id])
+  questions   SurveyQuestion[]
+  assignments SurveyAssignment[]
+  responses   SurveyResponse[]
+
+  @@index([companyId])
+}
+
+model SurveyQuestion {
+  id       String             @id @default(uuid())
+  surveyId String
+  order    Int
+  type     SurveyQuestionType
+  text     String
+  required Boolean            @default(true)
+
+  survey  Survey                 @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  options SurveyQuestionOption[]
+  answers SurveyAnswer[]
+
+  @@index([surveyId])
+}
+
+model SurveyQuestionOption {
+  id         String @id @default(uuid())
+  questionId String
+  label      String
+  order      Int
+
+  question SurveyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers  SurveyAnswer[]
+
+  @@index([questionId])
+}
+
+model SurveyAssignment {
+  id         String @id @default(uuid())
+  surveyId   String
+  employeeId String
+
+  survey   Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([surveyId, employeeId])
+}
+
+model SurveyResponse {
+  id          String   @id @default(uuid())
+  surveyId    String
+  employeeId  String
+  submittedAt DateTime @default(now())
+
+  survey   Survey         @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  employee Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  answers  SurveyAnswer[]
+
+  @@unique([surveyId, employeeId])
+}
+
+model SurveyAnswer {
+  id         String  @id @default(uuid())
+  responseId String
+  questionId String
+  optionId   String?
+  textValue  String?
+
+  response SurveyResponse       @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question SurveyQuestion       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  option   SurveyQuestionOption? @relation(fields: [optionId], references: [id], onDelete: SetNull)
+
+  @@unique([responseId, questionId])
+}
+
+model Message {
+  id             String    @id @default(uuid())
+  conversationId String
+  senderUserId   String?
+  senderEmployeeId String?
+  body           String
+  deliveredAt    DateTime  @default(now())
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderUser     User?        @relation("MessageSender", fields: [senderUserId], references: [id])
+  senderEmployee Employee?    @relation("EmployeeSender", fields: [senderEmployeeId], references: [id])
+
+  @@index([conversationId, createdAt])
+}
+
+model PayrollRun {
+  id         String        @id @default(uuid())
+  companyId  String
+  year       Int
+  month      Int
+  status     PayrollStatus @default(DRAFT)
+  calculatedAt DateTime?
+  createdAt  DateTime      @default(now())
+
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lineItems PayrollLineItem[]
+
+  @@unique([companyId, year, month])
+}
+
+model PayrollLineItem {
+  id                String  @id @default(uuid())
+  payrollRunId      String
+  employeeId        String
+  baseSalary        Decimal
+  workedDays        Int     @default(0)
+  absentDays        Int     @default(0)
+  overtimeHours     Float   @default(0)
+  missingHours      Float   @default(0)
+  overtimePay       Decimal @default(0)
+  deductions        Decimal @default(0)
+  netPay            Decimal @default(0)
+
+  payrollRun PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employee   Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([payrollRunId, employeeId])
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  companyId  String?
+  userId     String?
+  employeeId String?
+  title      String
+  body       String
+  type       String
+  data       Json?
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  company  Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([employeeId, isRead])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  companyId  String
+  actorId    String
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actor   User    @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([companyId, createdAt])
+}
+
+model KvkkConsent {
+  id         String   @id @default(uuid())
+  companyId  String
+  employeeId String?
+  userId     String?
+  version    String
+  acceptedAt DateTime @default(now())
+  ipAddress  String?
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+}
+
+model Marketer {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  companyName     String
+  code            String   @unique
+  phone           String?
+  commissionRate  Float    @default(0.20)
+  isActive        Boolean  @default(true)
+  iban            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resellers  Reseller[]
+  companies  Company[]
+  payments   PaymentTransaction[]
+
+  @@index([code])
+}
+
+model Reseller {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  marketerId            String?
+  companyName           String
+  code                  String   @unique
+  phone                 String?
+  commissionRate        Float    @default(0.15)
+  isActive              Boolean  @default(true)
+  applicationId         String?  @unique
+  assignedPlanId        String?
+  iyzicoSubMerchantKey  String?
+  iyzicoOnboardingStatus IyzicoOnboardingStatus @default(PENDING)
+  iban                  String?
+  taxNumber             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  marketer     Marketer?             @relation(fields: [marketerId], references: [id], onDelete: SetNull)
+  application  ResellerApplication?  @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  assignedPlan SubscriptionPlan?     @relation(fields: [assignedPlanId], references: [id], onDelete: SetNull)
+  companies    Company[]
+  payments     PaymentTransaction[]
+  feedbackThreads FeedbackThread[]
+
+  @@index([code])
+  @@index([marketerId])
+}
+
+model ResellerApplication {
+  id               String                    @id @default(uuid())
+  firstName        String
+  lastName         String
+  email            String
+  phone            String
+  companyName      String?
+  city             String?
+  experienceNotes  String?
+  surveyAnswers    String
+  status           ResellerApplicationStatus @default(SUBMITTED)
+  reviewNotes      String?
+  rejectionReason  String?
+  reviewedById     String?
+  reviewedAt       DateTime?
+  approvedResellerId String?
+  whatsappSentAt   DateTime?
+  whatsappStatus   String?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  reseller  Reseller?
+  events    ResellerApplicationEvent[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([status])
+}
+
+model ResellerApplicationEvent {
+  id            String                     @id @default(uuid())
+  applicationId String
+  type          ResellerApplicationEventType
+  message       String?
+  actorUserId   String?
+  createdAt     DateTime                   @default(now())
+
+  application ResellerApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+}
+
+model SubscriptionPlan {
+  id                String   @id @default(uuid())
+  name              String
+  slug              String   @unique
+  monthlyPrice      Float
+  maxEmployees      Int      @default(50)
+  maxBranches       Int      @default(1)
+  platformShareRate Float    @default(0.70)
+  resellerShareRate Float    @default(0.30)
+  isActive          Boolean  @default(true)
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  resellers     Reseller[]
+  subscriptions CompanySubscription[]
+  payments      PaymentTransaction[]
+}
+
+model CompanySubscription {
+  id                   String             @id @default(uuid())
+  companyId            String             @unique
+  planId               String
+  status               SubscriptionStatus @default(TRIAL)
+  iyzicoCustomerRef    String?
+  iyzicoSubscriptionRef String?
+  lastPaymentAt        DateTime?
+  nextBillingAt        DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan    SubscriptionPlan @relation(fields: [planId], references: [id])
+}
+
+model PaymentTransaction {
+  id              String        @id @default(uuid())
+  companyId       String
+  resellerId      String?
+  marketerId      String?
+  planId          String?
+  amount          Float
+  platformAmount  Float
+  resellerAmount  Float
+  marketerAmount  Float         @default(0)
+  iyzicoPaymentId String?
+  status          PaymentStatus @default(PENDING)
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+
+  company  Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reseller Reseller?         @relation(fields: [resellerId], references: [id], onDelete: SetNull)
+  marketer Marketer?         @relation(fields: [marketerId], references: [id], onDelete: SetNull)
+  plan     SubscriptionPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([resellerId])
+  @@index([marketerId])
+}
+
+model CommissionPayoutConfig {
+  id                  String          @id @default("default")
+  payoutFrequency     PayoutFrequency @default(INSTANT)
+  minimumPayoutAmount Float           @default(0)
+  holdDays            Int             @default(0)
+  updatedAt           DateTime        @updatedAt
+}
+
+model PlatformSettings {
+  id                     String   @id @default("default")
+  defaultCommissionRate  Float    @default(0.15)
+  monthlySubscriptionFee Float    @default(299)
+  defaultPlanId          String?
+  evolutionApiUrl        String?
+  evolutionApiKey        String?
+  evolutionInstance      String?
+  iyzicoApiKey           String?
+  iyzicoSecretKey        String?
+  iyzicoBaseUrl          String?
+  webAppUrl              String?  @default("http://localhost:5173")
+  requireEmployeeLocation Boolean @default(true)
+  updatedAt              DateTime @updatedAt
+}
+
+model FeedbackThread {
+  id              String               @id @default(uuid())
+  type            FeedbackThreadType
+  status          FeedbackThreadStatus @default(OPEN)
+  subject         String
+  companyId       String?
+  resellerId      String?
+  createdByUserId String
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  company   Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reseller  Reseller? @relation(fields: [resellerId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("FeedbackCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  messages  FeedbackMessage[]
+
+  @@index([companyId])
+  @@index([resellerId])
+  @@index([createdByUserId])
+}
+
+model FeedbackMessage {
+  id           String   @id @default(uuid())
+  threadId     String
+  senderUserId String
+  body         String
+  createdAt    DateTime @default(now())
+
+  thread FeedbackThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender User           @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+}
+
+model BranchAssignment {
+  id        String   @id @default(uuid())
+  userId    String
+  branchId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, branchId])
+  @@index([userId])
+  @@index([branchId])
+}
+
+model BranchTransfer {
+  id            String               @id @default(uuid())
+  companyId     String
+  employeeId    String
+  fromBranchId  String?
+  toBranchId    String
+  type          BranchTransferType   @default(TEMPORARY)
+  status        BranchTransferStatus @default(PENDING)
+  effectiveFrom DateTime             @default(now())
+  effectiveTo   DateTime?
+  reason        String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewNote    String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  fromBranch Branch?  @relation("TransferFrom", fields: [fromBranchId], references: [id])
+  toBranch   Branch   @relation("TransferTo", fields: [toBranchId], references: [id])
+
+  @@index([companyId, status])
+  @@index([employeeId])
+  @@index([toBranchId])
+}
+
+model JobPosting {
+  id             String           @id @default(uuid())
+  companyId      String
+  branchId       String?
+  departmentId   String?
+  formTemplateId String?
+  title          String
+  description    String?
+  position       String?
+  employmentType String?
+  salaryRange    String?
+  status         JobPostingStatus @default(DRAFT)
+  publicToken    String           @unique @default(uuid())
+  expiresAt      DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch       Branch?          @relation(fields: [branchId], references: [id])
+  formTemplate JobFormTemplate? @relation(fields: [formTemplateId], references: [id], onDelete: SetNull)
+  applications JobApplication[]
+
+  @@index([companyId, status])
+  @@index([publicToken])
+  @@index([formTemplateId])
+}
+
+model JobFormTemplate {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company  Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fields   JobFormField[]
+  postings JobPosting[]
+
+  @@index([companyId])
+}
+
+model JobFormField {
+  id         String           @id @default(uuid())
+  templateId String
+  order      Int
+  type       JobFormFieldType
+  label      String
+  required   Boolean          @default(false)
+  options    String?
+
+  template JobFormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+}
+
+model JobApplication {
+  id            String               @id @default(uuid())
+  jobPostingId  String
+  companyId     String
+  firstName     String
+  lastName      String
+  email         String?
+  phone         String
+  answers       String?
+  cvUrl         String?
+  status        JobApplicationStatus @default(SUBMITTED)
+  trackingCode  String               @unique
+  note          String?
+  hiredEmployeeId String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  jobPosting JobPosting             @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  company    Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  events     JobApplicationEvent[]
+
+  @@index([companyId, status])
+  @@index([jobPostingId])
+  @@index([phone])
+  @@index([trackingCode])
+}
+
+model JobApplicationEvent {
+  id            String                  @id @default(uuid())
+  applicationId String
+  type          JobApplicationEventType
+  note          String?
+  createdAt     DateTime                @default(now())
+
+  application JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+}
+
+model ShiftSwapRequest {
+  id               String             @id @default(uuid())
+  companyId        String
+  employeeId       String
+  targetEmployeeId String?
+  date             DateTime
+  toDate           DateTime?
+  reason           String?
+  status           StaffRequestStatus @default(PENDING)
+  reviewedById     String?
+  reviewedAt       DateTime?
+  reviewNote       String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee       Employee  @relation("SwapRequester", fields: [employeeId], references: [id], onDelete: Cascade)
+  targetEmployee Employee? @relation("SwapTarget", fields: [targetEmployeeId], references: [id])
+
+  @@index([companyId, status])
+  @@index([employeeId])
+}
+
+model OvertimeRequest {
+  id           String             @id @default(uuid())
+  companyId    String
+  employeeId   String
+  date         DateTime
+  minutes      Int
+  reason       String?
+  status       StaffRequestStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([employeeId])
+}
+
+model AdvanceRequest {
+  id           String             @id @default(uuid())
+  companyId    String
+  employeeId   String
+  type         AdvanceRequestType @default(ADVANCE)
+  amount       Decimal
+  reason       String?
+  status       StaffRequestStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([employeeId])
+}
+
+model EmployeeDocument {
+  id         String   @id @default(uuid())
+  companyId  String
+  employeeId String
+  type       String
+  title      String
+  fileUrl    String
+  metadata   String?
+  createdAt  DateTime @default(now())
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([employeeId])
+}

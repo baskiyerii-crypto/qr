@@ -1,0 +1,40 @@
+{
+  "name": "qr-personel",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/postinstall.mjs",
+    "setup": "node scripts/setup.mjs",
+    "docker:up": "node scripts/docker-up.mjs",
+    "docker:down": "node scripts/docker-down.mjs",
+    "docker:logs": "docker compose logs -f",
+    "evolution:install": "node scripts/evolution-local-install.mjs",
+    "evolution:local": "node scripts/evolution-local-start.mjs",
+    "evolution:setup": "node scripts/ensure-evolution-env.mjs && node scripts/evolution-setup.mjs",
+    "start": "npm run dev",
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @qr/api\" \"npm run dev -w @qr/web\"",
+    "dev:turbo": "turbo dev --filter=@qr/api --filter=@qr/web",
+    "dev:all": "turbo dev",
+    "dev:api": "npm run dev -w @qr/api",
+    "dev:web": "npm run dev -w @qr/web",
+    "dev:mobile": "npm run dev:clear -w @qr/mobile",
+    "dev:mobile:watch": "npm run dev -w @qr/mobile",
+    "build": "turbo build",
+    "start:prod": "npm run build && npm run start -w @qr/api",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "db:generate": "npm run db:generate -w @qr/api",
+    "db:push": "npm run db:push -w @qr/api",
+    "db:seed": "npm run db:seed -w @qr/api",
+    "db:studio": "npm run db:studio -w @qr/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,24 @@
+node_modules
+dist
+build
+.turbo
+.env
+.env.local
+*.log
+.DS_Store
+coverage
+.expo
+android
+ios
+*.tsbuildinfo
+.prisma
+apps/api/prisma/dev.db
+apps/api/prisma/dev.db-journal
+
+# Docker volumes (local bind mounts if added later)
+docker/data/
+
+# Evolution API (lokal kurulum — git clone)
+services/evolution-api/
+services/evolution/data/
+services/evolution/node_modules/

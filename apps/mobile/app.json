@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "QR Personel",
+    "slug": "qr-personel",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "qrpersonel",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1e3a5f"
+    },
+    "extra": {
+      "apiUrl": "http://localhost:3001/api"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.qrpersonel.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "QR kod okutmak için kamera gerekli",
+        "NSLocationWhenInUseUsageDescription": "Giriş-çıkış doğrulaması için konum gerekli"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1e3a5f"
+      },
+      "package": "com.qrpersonel.app",
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        { "cameraPermission": "QR kod okutmak için kamera izni gerekli" }
+      ],
+      [
+        "expo-location",
+        { "locationWhenInUsePermission": "Giriş-çıkış için konum izni zorunludur" }
+      ]
+    ]
+  }
+}

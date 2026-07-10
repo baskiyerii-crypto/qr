@@ -1,0 +1,3 @@
+# Yanlışlıkla src içine derlenen dosyalar
+src/**/*.js
+src/**/*.js.map
