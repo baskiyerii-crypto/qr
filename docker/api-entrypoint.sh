@@ -1,16 +1,15 @@
 #!/bin/sh
 set -e
 
-cd /app
+cd /app/apps/api
 
 echo "Prisma schema sync..."
-pnpm --filter @qr/api exec prisma db push --skip-generate
+./node_modules/.bin/prisma db push --skip-generate
 
 if [ "${RUN_DB_SEED:-false}" = "true" ]; then
   echo "Running database seed..."
-  pnpm --filter @qr/api exec prisma db seed
+  ./node_modules/.bin/prisma db seed
 fi
 
-cd /app/apps/api
 echo "Starting API..."
 exec "$@"
