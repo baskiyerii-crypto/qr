@@ -2,15 +2,21 @@
 
 Multi-tenant personel devam, puantaj, maaş ve iletişim platformu.
 
-## Hızlı Başlangıç (Windows / npm)
+## Hızlı Başlangıç (Windows)
 
 ```bash
-# 1. Kurulum (ilk sefer)
-npm run setup
+# 1. Bağımlılıklar (pnpm workspace — npm install çalışmaz)
+npx pnpm@9.15.0 install
 
-# 2. Başlat (API + Web birlikte)
+# 2. İlk kurulum (DB + demo veri)
+npx pnpm@9.15.0 run setup
+
+# 3. Başlat (API + Web birlikte)
 npm start
 ```
+
+> **Not:** `pnpm` global kurulu değilse `npx pnpm@9.15.0` kullanın.  
+> Docker yoksa SQLite modu otomatik devreye girer (`apps/api/.env`).
 
 - **Web Admin:** http://localhost:5173  
 - **API:** http://localhost:3001/api  

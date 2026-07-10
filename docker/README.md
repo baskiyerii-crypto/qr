@@ -112,3 +112,97 @@ EVOLUTION_INSTANCE_NAME=qr-personel
 
 - Mesaj gitmiyor → Manager'da instance durumu "connected" olmalı; API `.env` anahtarları `docker/evolution.env` ile aynı olmalı.
 
+
+
+## Production — Hetzner + Coolify
+
+
+
+Kök dizindeki `docker-compose.prod.yml` tüm production stack'ini çalıştırır:
+
+| Servis | Port (internal) | Açıklama |
+|--------|-----------------|----------|
+| **postgres** | 5432 | Ana veritabanı |
+| **redis** | 6379 | Bildirim kuyruğu |
+| **api** | 3001 | NestJS API (`Dockerfile.api`) |
+| **web** | 80 | React panel + nginx (`Dockerfile.web`) |
+| **evolution-*** | — | WhatsApp (opsiyonel, `whatsapp` profili) |
+
+
+
+### 1. Ortam dosyası
+
+
+
+```bash
+
+cp docker/.env.production.example .env.production
+
+# Şifreleri ve domain'leri düzenleyin
+
+```
+
+
+
+Zorunlu değişkenler: `POSTGRES_PASSWORD`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN`, `WEB_APP_URL`
+
+
+
+### 2. Coolify kurulumu
+
+
+
+1. Hetzner VPS (Ubuntu 24.04, min. 4 GB RAM) + [Coolify](https://coolify.io) kurun
+2. DNS: `app.sizindomain.com` → sunucu IP
+3. Coolify → **New Resource** → **Docker Compose**
+4. Git repo bağlayın, compose dosyası: `docker-compose.prod.yml`
+5. Environment Variables: `.env.production` içeriğini Coolify UI'ya yapıştırın
+6. Domain'i **`web`** servisine bağlayın (port **80**)
+7. Deploy
+
+
+
+İlk kurulumda demo veri için `RUN_DB_SEED=true` yapıp bir kez deploy edin, sonra `false` yapın.
+
+
+
+### 3. WhatsApp (opsiyonel)
+
+
+
+Coolify'da compose profiles desteklenmiyorsa sunucuda:
+
+
+
+```bash
+
+docker compose -f docker-compose.prod.yml --env-file .env.production --profile whatsapp up -d
+
+```
+
+
+
+`EVOLUTION_API_KEY` ve `EVOLUTION_POSTGRES_PASSWORD` değerlerini `.env.production` içinde ayarlayın.
+
+
+
+### 4. Yerel production testi
+
+
+
+```bash
+
+cp docker/.env.production.example .env.production
+
+# CORS_ORIGIN=http://localhost olarak bırakın
+
+npm run docker:prod:up
+
+# http://localhost (Coolify olmadan port yayınlamak için compose'a ports ekleyin)
+
+```
+
+
+
+`uploads` verisi `uploads_data` volume'ünde kalır; container yenilense de dosyalar silinmez.
+
