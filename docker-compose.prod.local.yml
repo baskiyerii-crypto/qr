@@ -1,7 +1,37 @@
 # Yerel production testi için (Coolify'da gerekmez):
 #   docker compose -f docker-compose.prod.yml -f docker-compose.prod.local.yml --env-file .env.production up -d --build
+#
+# Compose içi postgres ile test eder; Coolify'da harici DATABASE_URL kullanın.
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD gerekli}
+      POSTGRES_DB: ${POSTGRES_DB:-qr_personel}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-qr} -d ${POSTGRES_DB:-qr_personel}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qr}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-qr_personel}?schema=public
+
   web:
     ports:
       - '8080:80'
+
+volumes:
+  postgres_data:
