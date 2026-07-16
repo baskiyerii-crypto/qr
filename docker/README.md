@@ -153,16 +153,32 @@ Zorunlu değişkenler: `POSTGRES_PASSWORD`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, 
 
 
 1. Hetzner VPS (Ubuntu 24.04, min. 4 GB RAM) + [Coolify](https://coolify.io) kurun
-2. DNS: `app.sizindomain.com` → sunucu IP
+2. DNS: `app.sizindomain.com` → sunucu IP (veya Coolify sslip.io domain)
 3. Coolify → **New Resource** → **Docker Compose**
 4. Git repo bağlayın, compose dosyası: `docker-compose.prod.yml`
 5. Environment Variables: `.env.production` içeriğini Coolify UI'ya yapıştırın
-6. Domain'i **`web`** servisine bağlayın (port **80**)
-7. Deploy
+   - `CORS_ORIGIN` ve `WEB_APP_URL` = Coolify domain'iniz (tam URL)
+   - `DATABASE_URL` = Coolify PostgreSQL resource internal URL
+6. Domain'i **sadece `web` servisine** bağlayın (port **80**)
+   - `redis` veya `api` servisine domain bağlamayın → Traefik **404 page not found** verir
+7. Deploy — `web` ve `api` healthy olana kadar bekleyin
 
 
 
 İlk kurulumda demo veri için `RUN_DB_SEED=true` yapıp bir kez deploy edin, sonra `false` yapın.
+
+
+
+### 2b. Coolify 404 troubleshooting
+
+
+
+Tarayıcıda düz metin `404 page not found` görürseniz (Nginx/React değil, Traefik):
+
+1. Domain **`web`** + port **80** mi? (`redis`/`api` olmamalı)
+2. `web` servisi Running/Healthy mi? (`api` healthy olmadan `web` başlamaz)
+3. `api` loglarında `DATABASE_URL` / Prisma hatası var mı?
+4. Redeploy sonrası `/` landing, `/health` API yanıtı dönmeli
 
 
 

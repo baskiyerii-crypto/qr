@@ -3,10 +3,12 @@
 #   # Şifreleri düzenleyin, sonra:
 #   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 #
-# Coolify: New Resource → Docker Compose → bu dosyayı seçin.
-# PostgreSQL: ayrı Coolify DB resource — DATABASE_URL env ile bağlanın.
-# Domain'i "web" servisine bağlayın (port 80).
-# Yerel test (compose içi postgres): docker-compose.prod.local.yml override kullanın.
+# Coolify:
+#   1. New Resource → Docker Compose → bu dosyayı seçin
+#   2. Environment Variables: DATABASE_URL, JWT_*, CORS_ORIGIN, WEB_APP_URL
+#   3. Domain'i SADECE "web" servisine bağlayın (port 80) — redis/api'ye DEĞİL
+#   4. PostgreSQL: ayrı Coolify DB resource → DATABASE_URL ile bağlayın
+# Yerel test: docker-compose.prod.local.yml override kullanın.
 
 services:
   redis:
@@ -52,6 +54,7 @@ services:
       IYZICO_CALLBACK_URL: ${IYZICO_CALLBACK_URL:-}
     volumes:
       - uploads_data:/app/apps/api/uploads
+    # Coolify proxy bu porta bağlanmaz; sadece compose ağı içi (nginx → api)
     expose:
       - '3001'
     healthcheck:
@@ -61,6 +64,7 @@ services:
       retries: 12
       start_period: 120s
 
+  # Coolify domain → bu servis, port 80
   web:
     build:
       context: .
@@ -70,8 +74,9 @@ services:
     restart: unless-stopped
     depends_on:
       api:
-        condition: service_started
-    expose:
+        condition: service_healthy
+    # Coolify Traefik port keşfi için host map olmadan ports gerekir (expose yetmez → 404)
+    ports:
       - '80'
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://127.0.0.1/']

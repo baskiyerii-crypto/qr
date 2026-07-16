@@ -30,6 +30,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-qr}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-qr_personel}?schema=public
 
   web:
+    # Yerelde host:8080 → container:80 (prod'daki ports: '80' üzerine yazar)
     ports:
       - '8080:80'
 
