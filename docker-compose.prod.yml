@@ -74,7 +74,7 @@ services:
     restart: unless-stopped
     depends_on:
       api:
-        condition: service_healthy
+        condition: service_started
     # Coolify Traefik port keşfi için host map olmadan ports gerekir (expose yetmez → 404)
     ports:
       - '80'

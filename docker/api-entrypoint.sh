@@ -4,7 +4,25 @@ set -e
 cd /app/apps/api
 
 echo "Prisma schema sync..."
-./node_modules/.bin/prisma db push --skip-generate
+max_retries=10
+count=1
+success=false
+
+while [ $count -le $max_retries ]; do
+  echo "Prisma db push: Connection attempt $count of $max_retries..."
+  if ./node_modules/.bin/prisma db push --skip-generate; then
+    success=true
+    break
+  fi
+  echo "Database connection failed or not ready. Retrying in 5 seconds..."
+  sleep 5
+  count=$((count + 1))
+done
+
+if [ "$success" = "false" ]; then
+  echo "Error: Prisma could not connect to the database after $max_retries attempts. Exiting."
+  exit 1
+fi
 
 should_seed=false
 if [ "${RUN_DB_SEED:-false}" = "true" ]; then
