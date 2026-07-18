@@ -157,15 +157,17 @@ Zorunlu değişkenler: `POSTGRES_PASSWORD`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, 
 3. Coolify → **New Resource** → **Docker Compose**
 4. Git repo bağlayın, compose dosyası: `docker-compose.prod.yml`
 5. Environment Variables: `.env.production` içeriğini Coolify UI'ya yapıştırın
+   - `POSTGRES_PASSWORD`, `JWT_SECRET`, `JWT_REFRESH_SECRET` zorunlu
    - `CORS_ORIGIN` ve `WEB_APP_URL` = Coolify domain'iniz (tam URL)
-   - `DATABASE_URL` = Coolify PostgreSQL resource internal URL
+   - Eski harici `DATABASE_URL` varsa **silin** — compose host=`postgres` kullanır
+   - İlk kurulumda `RUN_DB_SEED=true`, sonra `false`
 6. Domain'i **sadece `web` servisine** bağlayın (port **80**)
-   - `redis` veya `api` servisine domain bağlamayın → Traefik **404 page not found** verir
-7. Deploy — `web` ve `api` healthy olana kadar bekleyin
+   - `redis` / `api` / `postgres` servisine domain bağlamayın → Traefik **404** veya yanlış proxy
+7. Deploy — `postgres` + `api` + `web` healthy olana kadar bekleyin
 
 
 
-İlk kurulumda demo veri için `RUN_DB_SEED=true` yapıp bir kez deploy edin, sonra `false` yapın.
+Postgres bu compose içinde (api ile aynı ağ). Ayrı Coolify PostgreSQL resource **gerekmez**.
 
 
 
