@@ -14,9 +14,20 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    # maxmemory container limitinin biraz altında; noeviction → kuyruk (BullMQ)
+    # işleri düşürülmez, dolarsa yalnızca yeni yazımlar hata verir (uygulama ayakta kalır).
+    command: >-
+      redis-server --appendonly yes
+      --maxmemory ${REDIS_MAXMEMORY:-384mb}
+      --maxmemory-policy noeviction
     volumes:
       - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: ${REDIS_MEM_LIMIT:-512m}
+        reservations:
+          memory: 128m
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -42,6 +53,9 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       API_PORT: 3001
+      # Node heap tavanı limitin ~%75'i olmalı (OOM'u erken/temiz yakalamak için).
+      # API_MEM_LIMIT büyütülürse bunu da orantılı büyütün (ör. 4g limit → 3072).
+      NODE_OPTIONS: ${API_NODE_OPTIONS:---max-old-space-size=1536}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
       WEB_APP_URL: ${WEB_APP_URL:-http://localhost}
       RUN_DB_SEED: ${RUN_DB_SEED:-false}
@@ -57,6 +71,17 @@ services:
     # Coolify proxy bu porta bağlanmaz; sadece compose ağı içi (nginx → api)
     expose:
       - '3001'
+    # Bellek limiti THROUGHPUT'u kısmaz (CPU/istek sınırlamaz), yalnızca RAM tavanı
+    # koyar; böylece bir servis şişip diğerlerini OOM ile öldüremez. Binlerce
+    # eşzamanlı kullanıcı için varsayılan 2g cömerttir; büyük sunucuda .env'den
+    # API_MEM_LIMIT / API_NODE_OPTIONS ile yükseltin. Yatay ölçek için birden çok
+    # api replikası da çalıştırılabilir.
+    deploy:
+      resources:
+        limits:
+          memory: ${API_MEM_LIMIT:-2g}
+        reservations:
+          memory: ${API_MEM_RESERVATION:-512m}
     healthcheck:
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
@@ -78,6 +103,14 @@ services:
     # Coolify Traefik port keşfi için host map olmadan ports gerekir (expose yetmez → 404)
     ports:
       - '80'
+    # nginx statik dosya sunar; çok az RAM yeter. Binlerce kullanıcı bağlantısında
+    # bile 256m fazlasıyla yeterli, gerekirse WEB_MEM_LIMIT ile artırın.
+    deploy:
+      resources:
+        limits:
+          memory: ${WEB_MEM_LIMIT:-256m}
+        reservations:
+          memory: 64m
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://127.0.0.1/']
       interval: 30s
@@ -95,6 +128,12 @@ services:
       POSTGRES_DB: evolution_api
     volumes:
       - evolution_postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: ${EVOLUTION_DB_MEM_LIMIT:-512m}
+        reservations:
+          memory: 128m
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U evolution -d evolution_api']
       interval: 5s
@@ -137,6 +176,12 @@ services:
       LANGUAGE: en
     expose:
       - '8080'
+    deploy:
+      resources:
+        limits:
+          memory: ${EVOLUTION_MEM_LIMIT:-768m}
+        reservations:
+          memory: 192m
     healthcheck:
       test: ['CMD-SHELL', 'wget -q --spider http://127.0.0.1:8080/ || exit 1']
       interval: 10s
@@ -151,6 +196,12 @@ services:
     depends_on:
       evolution-api:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: ${EVOLUTION_MANAGER_MEM_LIMIT:-128m}
+        reservations:
+          memory: 32m
     expose:
       - '80'
 
