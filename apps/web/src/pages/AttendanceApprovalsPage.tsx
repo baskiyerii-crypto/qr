@@ -53,7 +53,16 @@ export function AttendanceApprovalsPage() {
                   <div>
                     <p className="font-medium text-slate-900">{r.employee.user.firstName} {r.employee.user.lastName}</p>
                     <p className="text-sm text-slate-500">
-                      {r.type === 'CHECK_IN' ? 'Giriş' : 'Çıkış'} · {r.branch.name} ·{' '}
+                      {r.type === 'CHECK_IN'
+                        ? 'Giriş'
+                        : r.type === 'CHECK_OUT'
+                          ? 'Çıkış'
+                          : r.type === 'MEAL_START'
+                            ? 'Yemeğe çıkış'
+                            : r.type === 'MEAL_END'
+                              ? 'Yemekten dönüş'
+                              : r.type}{' '}
+                      · {r.branch.name} ·{' '}
                       {new Date(r.serverTimestamp).toLocaleString('tr-TR')}
                     </p>
                     {r.notes && <p className="text-sm text-slate-400">Gerekçe: {r.notes}</p>}

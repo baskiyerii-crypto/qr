@@ -1,6 +1,7 @@
 export {
   UserRole,
   AttendanceType,
+  AttendanceMode,
   LeaveType,
   LeaveStatus,
   TaskStatus,

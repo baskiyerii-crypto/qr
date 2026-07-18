@@ -7,12 +7,27 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CheckInInput, MAX_CLOCK_SKEW_SECONDS } from '@qr/shared';
 import { isWithinGeofence, haversineDistanceM } from '../common/utils';
-import { AttendanceType, DeviceStatus, AttendanceStatus, BranchTransferStatus } from '@prisma/client';
+import {
+  AttendanceType,
+  AttendanceMode,
+  DeviceStatus,
+  AttendanceStatus,
+  BranchTransferStatus,
+} from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { BranchScope } from '../common/decorators';
 import { branchWhere, canAccessBranch } from '../common/branch-scope';
 import { verifyBranchQrToken } from '../common/qr';
+
+type BranchRow = {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  geofenceRadiusM: number;
+  qrSecret: string | null;
+};
 
 @Injectable()
 export class AttendanceService {
@@ -40,26 +55,70 @@ export class AttendanceService {
     return allowed;
   }
 
-  async checkInOut(
-    employeeId: string,
-    companyId: string,
-    userId: string,
-    dto: CheckInInput,
-  ) {
-    const platform = await this.prisma.platformSettings.findUnique({ where: { id: 'default' } });
-    const requireLocation = platform?.requireEmployeeLocation ?? true;
+  private isMealType(type: AttendanceType) {
+    return type === AttendanceType.MEAL_START || type === AttendanceType.MEAL_END;
+  }
 
-    if (requireLocation && (dto.latitude == null || dto.longitude == null)) {
-      throw new BadRequestException('Konum bilgisi gerekli');
+  private assertStateMachine(type: AttendanceType, lastType: AttendanceType | undefined, mealEnabled: boolean) {
+    if (type === AttendanceType.CHECK_IN) {
+      if (lastType && lastType !== AttendanceType.CHECK_OUT) {
+        throw new BadRequestException('Zaten giriş yapmışsınız. Önce çıkış yapın.');
+      }
+      return;
     }
+    if (type === AttendanceType.MEAL_START) {
+      if (!mealEnabled) throw new BadRequestException('Yemek molası bu şirkette kapalı');
+      if (lastType !== AttendanceType.CHECK_IN && lastType !== AttendanceType.MEAL_END) {
+        throw new BadRequestException('Yemeğe çıkmak için önce giriş yapmalısınız');
+      }
+      return;
+    }
+    if (type === AttendanceType.MEAL_END) {
+      if (!mealEnabled) throw new BadRequestException('Yemek molası bu şirkette kapalı');
+      if (lastType !== AttendanceType.MEAL_START) {
+        throw new BadRequestException('Önce yemeğe çıkış yapmalısınız');
+      }
+      return;
+    }
+    // CHECK_OUT
+    if (!lastType || lastType === AttendanceType.CHECK_OUT) {
+      throw new BadRequestException('Önce giriş yapmalısınız');
+    }
+    if (lastType === AttendanceType.MEAL_START) {
+      throw new BadRequestException('Yemekteyken çıkış yapılamaz. Önce yemekten dönün.');
+    }
+  }
 
-    const company = await this.prisma.company.findUniqueOrThrow({
-      where: { id: companyId },
-    });
+  private pickNearestBranch(
+    branches: BranchRow[],
+    latitude: number,
+    longitude: number,
+  ): { nearest: BranchRow; dist: number } {
+    let nearest = branches[0];
+    let nearestDist = haversineDistanceM(latitude, longitude, nearest.latitude, nearest.longitude);
+    for (const b of branches.slice(1)) {
+      const d = haversineDistanceM(latitude, longitude, b.latitude, b.longitude);
+      if (d < nearestDist) {
+        nearest = b;
+        nearestDist = d;
+      }
+    }
+    return { nearest, dist: nearestDist };
+  }
 
+  private async resolveBranchViaQr(
+    companyId: string,
+    companyQrToken: string,
+    qrToken: string,
+    branches: BranchRow[],
+    requireLocation: boolean,
+    latitude: number | undefined,
+    longitude: number | undefined,
+    employeeId: string,
+  ): Promise<{ nearest: BranchRow; withinGeofence: boolean }> {
     let parsedQr: { type?: string; companyId?: string; branchId?: string; token?: string };
     try {
-      parsedQr = JSON.parse(dto.qrToken);
+      parsedQr = JSON.parse(qrToken);
     } catch {
       throw new BadRequestException('Geçersiz QR kodu');
     }
@@ -68,14 +127,8 @@ export class AttendanceService {
       throw new BadRequestException('QR kodu bu şirkete ait değil');
     }
 
-    const branches = await this.prisma.branch.findMany({
-      where: { companyId, isActive: true },
-    });
-    if (branches.length === 0) throw new NotFoundException('Aktif şube bulunamadı');
-
-    let nearest;
+    let nearest: BranchRow;
     if (parsedQr.type === 'branch' && parsedQr.branchId) {
-      // Dinamik şube QR'ı: taranan şube ve zaman pencereli token doğrulaması
       const scanned = branches.find((b) => b.id === parsedQr.branchId);
       if (!scanned) throw new BadRequestException('QR kodundaki şube bulunamadı');
       if (!scanned.qrSecret || !parsedQr.token || !verifyBranchQrToken(scanned.qrSecret, parsedQr.token)) {
@@ -83,38 +136,28 @@ export class AttendanceService {
       }
       nearest = scanned;
     } else {
-      // Eski şirket QR'ı (geriye dönük uyumluluk): statik token + konumdan en yakın şube
-      if (parsedQr.token !== company.qrToken) {
+      if (parsedQr.token !== companyQrToken) {
         throw new BadRequestException('QR kodu bu şirkete ait değil');
       }
-      if (requireLocation) {
-        nearest = branches[0];
-        let nearestDist = haversineDistanceM(dto.latitude!, dto.longitude!, nearest.latitude, nearest.longitude);
-        for (const b of branches.slice(1)) {
-          const d = haversineDistanceM(dto.latitude!, dto.longitude!, b.latitude, b.longitude);
-          if (d < nearestDist) {
-            nearest = b;
-            nearestDist = d;
-          }
-        }
+      if (requireLocation && latitude != null && longitude != null) {
+        nearest = this.pickNearestBranch(branches, latitude, longitude).nearest;
       } else {
         const employee = await this.prisma.employee.findUniqueOrThrow({
           where: { id: employeeId },
           select: { branchId: true },
         });
-        nearest =
-          branches.find((b) => b.id === employee.branchId) ?? branches[0];
+        nearest = branches.find((b) => b.id === employee.branchId) ?? branches[0];
       }
     }
 
     let withinGeofence = true;
-    let recordLatitude = dto.latitude ?? nearest.latitude;
-    let recordLongitude = dto.longitude ?? nearest.longitude;
-
     if (requireLocation) {
+      if (latitude == null || longitude == null) {
+        throw new BadRequestException('Konum bilgisi gerekli');
+      }
       withinGeofence = isWithinGeofence(
-        dto.latitude!,
-        dto.longitude!,
+        latitude,
+        longitude,
         nearest.latitude,
         nearest.longitude,
         nearest.geofenceRadiusM,
@@ -123,6 +166,75 @@ export class AttendanceService {
         throw new ForbiddenException('Konumunuz herhangi bir şube alanı dışında');
       }
     }
+
+    return { nearest, withinGeofence };
+  }
+
+  private resolveBranchViaLocation(
+    branches: BranchRow[],
+    latitude: number,
+    longitude: number,
+  ): { nearest: BranchRow; withinGeofence: boolean } {
+    const { nearest } = this.pickNearestBranch(branches, latitude, longitude);
+    const withinGeofence = isWithinGeofence(
+      latitude,
+      longitude,
+      nearest.latitude,
+      nearest.longitude,
+      nearest.geofenceRadiusM,
+    );
+    if (!withinGeofence) {
+      throw new ForbiddenException('Konumunuz herhangi bir şube alanı dışında');
+    }
+    return { nearest, withinGeofence };
+  }
+
+  private async mealMinutesToday(employeeId: string, companyId: string): Promise<number> {
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date();
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const records = await this.prisma.attendanceRecord.findMany({
+      where: {
+        employeeId,
+        companyId,
+        status: AttendanceStatus.APPROVED,
+        serverTimestamp: { gte: dayStart, lte: dayEnd },
+        type: { in: [AttendanceType.MEAL_START, AttendanceType.MEAL_END] },
+      },
+      orderBy: { serverTimestamp: 'asc' },
+    });
+
+    let total = 0;
+    let openStart: Date | null = null;
+    for (const r of records) {
+      if (r.type === AttendanceType.MEAL_START) {
+        openStart = r.serverTimestamp;
+      } else if (r.type === AttendanceType.MEAL_END && openStart) {
+        total += Math.round((r.serverTimestamp.getTime() - openStart.getTime()) / 60000);
+        openStart = null;
+      }
+    }
+    if (openStart) {
+      total += Math.round((Date.now() - openStart.getTime()) / 60000);
+    }
+    return total;
+  }
+
+  async checkInOut(
+    employeeId: string,
+    companyId: string,
+    userId: string,
+    dto: CheckInInput,
+  ) {
+    const platform = await this.prisma.platformSettings.findUnique({ where: { id: 'default' } });
+    const requireLocation = platform?.requireEmployeeLocation ?? true;
+    const isMeal = this.isMealType(dto.type);
+
+    const company = await this.prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
+    });
 
     const clientTime = new Date(dto.clientTimestamp);
     const skew = Math.abs(Date.now() - clientTime.getTime()) / 1000;
@@ -139,21 +251,77 @@ export class AttendanceService {
       include: { user: { select: { firstName: true, lastName: true } } },
     });
 
-    const allowed = await this.allowedBranchIds(employeeId, employee.branchId);
-    const isOffBranch = !allowed.has(nearest.id);
-
     const lastRecord = await this.prisma.attendanceRecord.findFirst({
       where: { employeeId, companyId, status: AttendanceStatus.APPROVED },
       orderBy: { serverTimestamp: 'desc' },
     });
 
-    if (dto.type === AttendanceType.CHECK_IN) {
-      if (lastRecord?.type === AttendanceType.CHECK_IN) {
-        throw new BadRequestException('Zaten giriş yapmışsınız. Önce çıkış yapın.');
+    this.assertStateMachine(dto.type, lastRecord?.type, company.mealBreakEnabled);
+
+    const branches = await this.prisma.branch.findMany({
+      where: { companyId, isActive: true },
+    });
+    if (branches.length === 0) throw new NotFoundException('Aktif şube bulunamadı');
+
+    let nearest: BranchRow;
+    let withinGeofence = true;
+    let recordLatitude: number;
+    let recordLongitude: number;
+    let isOffBranch = false;
+
+    if (isMeal) {
+      // Meal: no QR / geofence; use last approved branch or assigned branch
+      const branchId =
+        lastRecord?.branchId ??
+        employee.branchId ??
+        branches[0].id;
+      nearest = branches.find((b) => b.id === branchId) ?? branches[0];
+      recordLatitude = dto.latitude ?? nearest.latitude;
+      recordLongitude = dto.longitude ?? nearest.longitude;
+    } else if (company.attendanceMode === AttendanceMode.LOCATION) {
+      if (dto.latitude == null || dto.longitude == null) {
+        throw new BadRequestException('Konum bilgisi gerekli');
       }
+      const resolved = this.resolveBranchViaLocation(branches, dto.latitude, dto.longitude);
+      nearest = resolved.nearest;
+      withinGeofence = resolved.withinGeofence;
+      recordLatitude = dto.latitude;
+      recordLongitude = dto.longitude;
+      const allowed = await this.allowedBranchIds(employeeId, employee.branchId);
+      isOffBranch = !allowed.has(nearest.id);
     } else {
-      if (!lastRecord || lastRecord.type === AttendanceType.CHECK_OUT) {
-        throw new BadRequestException('Önce giriş yapmalısınız');
+      // QR mode
+      if (!dto.qrToken) {
+        throw new BadRequestException('QR kodu gerekli');
+      }
+      if (requireLocation && (dto.latitude == null || dto.longitude == null)) {
+        throw new BadRequestException('Konum bilgisi gerekli');
+      }
+      const resolved = await this.resolveBranchViaQr(
+        companyId,
+        company.qrToken,
+        dto.qrToken,
+        branches,
+        requireLocation,
+        dto.latitude,
+        dto.longitude,
+        employeeId,
+      );
+      nearest = resolved.nearest;
+      withinGeofence = resolved.withinGeofence;
+      recordLatitude = dto.latitude ?? nearest.latitude;
+      recordLongitude = dto.longitude ?? nearest.longitude;
+      const allowed = await this.allowedBranchIds(employeeId, employee.branchId);
+      isOffBranch = !allowed.has(nearest.id);
+    }
+
+    let mealOverLimit = false;
+    let mealMinutesToday = 0;
+    if (dto.type === AttendanceType.MEAL_END) {
+      mealMinutesToday = await this.mealMinutesToday(employeeId, companyId);
+      // Include the just-ending open meal: mealMinutesToday already counts open START→now
+      if (mealMinutesToday > company.mealBreakLimitMinutes) {
+        mealOverLimit = true;
       }
     }
 
@@ -171,7 +339,11 @@ export class AttendanceService {
         deviceId: dto.deviceId,
         status: isOffBranch ? AttendanceStatus.PENDING : AttendanceStatus.APPROVED,
         isOffBranch,
-        notes: isOffBranch ? dto.offBranchReason ?? null : null,
+        notes: isOffBranch
+          ? dto.offBranchReason ?? null
+          : mealOverLimit
+            ? `Yemek limiti aşıldı (${mealMinutesToday}/${company.mealBreakLimitMinutes} dk)`
+            : null,
       },
       include: {
         branch: { select: { name: true } },
@@ -179,16 +351,72 @@ export class AttendanceService {
     });
 
     if (isOffBranch) {
-      await this.notifyOffBranch(companyId, nearest.id, nearest.name, employee.user.firstName, employee.user.lastName, record.id);
+      await this.notifyOffBranch(
+        companyId,
+        nearest.id,
+        nearest.name,
+        employee.user.firstName,
+        employee.user.lastName,
+        record.id,
+      );
+    }
+
+    if (mealOverLimit) {
+      await this.notifyMealOver(
+        companyId,
+        nearest.id,
+        employee.user.firstName,
+        employee.user.lastName,
+        mealMinutesToday,
+        company.mealBreakLimitMinutes,
+      );
     }
 
     return {
       ...record,
       offBranchPending: isOffBranch,
+      mealOverLimit,
+      mealMinutesToday: dto.type === AttendanceType.MEAL_END ? mealMinutesToday : undefined,
+      mealBreakLimitMinutes: company.mealBreakLimitMinutes,
       message: isOffBranch
         ? `Görev yeriniz dışındaki "${nearest.name}" şubesinde giriş yaptınız. Yönetici onayı bekleniyor.`
-        : undefined,
+        : mealOverLimit
+          ? `Yemek süreniz limiti aştı (${mealMinutesToday}/${company.mealBreakLimitMinutes} dk).`
+          : undefined,
     };
+  }
+
+  private async notifyMealOver(
+    companyId: string,
+    branchId: string,
+    firstName: string,
+    lastName: string,
+    minutes: number,
+    limit: number,
+  ) {
+    const managers = await this.prisma.user.findMany({
+      where: {
+        companyId,
+        isActive: true,
+        OR: [
+          { role: { in: ['COMPANY_ADMIN', 'HR_MANAGER'] } },
+          { branchAssignments: { some: { branchId } } },
+        ],
+      },
+      select: { id: true },
+    });
+    await Promise.all(
+      managers.map((m) =>
+        this.notifications.notifyUser(
+          companyId,
+          m.id,
+          'Yemek Süresi Aşımı',
+          `${firstName} ${lastName} yemek limitini aştı (${minutes}/${limit} dk)`,
+          'ATTENDANCE_MEAL_OVER',
+          { minutes, limit },
+        ),
+      ),
+    );
   }
 
   private async notifyOffBranch(

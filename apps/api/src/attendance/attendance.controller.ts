@@ -84,7 +84,7 @@ export class AttendanceController {
     body: {
       employeeId: string;
       branchId: string;
-      type: 'CHECK_IN' | 'CHECK_OUT';
+      type: 'CHECK_IN' | 'CHECK_OUT' | 'MEAL_START' | 'MEAL_END';
       timestamp: string;
       reason: string;
     },

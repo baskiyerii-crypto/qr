@@ -92,12 +92,34 @@ export class TimesheetsService {
       let earlyLeaveMinutes = 0;
 
       const checkIn = dayRecords.find((r) => r.type === AttendanceType.CHECK_IN);
-      const checkOut = dayRecords.find((r) => r.type === AttendanceType.CHECK_OUT);
+      const checkOuts = dayRecords.filter((r) => r.type === AttendanceType.CHECK_OUT);
+      const checkOut = checkOuts.length ? checkOuts[checkOuts.length - 1] : undefined;
 
       if (checkIn && checkOut) {
         workedMinutes = Math.round(
           (checkOut.serverTimestamp.getTime() - checkIn.serverTimestamp.getTime()) / 60000,
         );
+
+        // Subtract unpaid meal breaks (MEAL_START → MEAL_END pairs)
+        let mealMinutes = 0;
+        let openMeal: Date | null = null;
+        for (const r of dayRecords) {
+          if (r.type === AttendanceType.MEAL_START) {
+            openMeal = r.serverTimestamp;
+          } else if (r.type === AttendanceType.MEAL_END && openMeal) {
+            mealMinutes += Math.round(
+              (r.serverTimestamp.getTime() - openMeal.getTime()) / 60000,
+            );
+            openMeal = null;
+          }
+        }
+        if (openMeal) {
+          mealMinutes += Math.round(
+            (checkOut.serverTimestamp.getTime() - openMeal.getTime()) / 60000,
+          );
+        }
+        workedMinutes = Math.max(0, workedMinutes - mealMinutes);
+
         if (startTime && endTime) {
           const [sh, sm] = startTime.split(':').map(Number);
           const plannedStart = new Date(date);

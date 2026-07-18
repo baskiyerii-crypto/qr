@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   UserRole,
   AttendanceType,
+  AttendanceMode,
   LeaveType,
   TaskPriority,
   BranchTransferType,
@@ -28,7 +29,7 @@ export const registerCompanySchema = z.object({
 
 export const checkInSchema = z.object({
   branchId: z.string().uuid().optional(),
-  qrToken: z.string().min(1),
+  qrToken: z.string().min(1).optional(),
   type: z.nativeEnum(AttendanceType),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
@@ -268,6 +269,11 @@ export const companySettingsSchema = z.object({
   standardWorkDays: z.array(z.number().min(0).max(6)).min(1).max(7).optional(),
   standardStartTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   standardEndTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  attendanceMode: z.nativeEnum(AttendanceMode).optional(),
+  mealBreakEnabled: z.boolean().optional(),
+  mealBreakLimitMinutes: z.number().int().min(15).max(180).optional(),
+  attendanceRemindersEnabled: z.boolean().optional(),
+  reminderMinutesBefore: z.number().int().min(5).max(60).optional(),
 });
 
 export const resellerSurveySchema = z.object({

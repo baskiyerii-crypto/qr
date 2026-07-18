@@ -14,6 +14,11 @@ type Company = {
   standardWorkDays: number[];
   standardStartTime: string;
   standardEndTime: string;
+  attendanceMode: 'QR' | 'LOCATION';
+  mealBreakEnabled: boolean;
+  mealBreakLimitMinutes: number;
+  attendanceRemindersEnabled: boolean;
+  reminderMinutesBefore: number;
 };
 
 const DAY_OPTIONS = [
@@ -35,6 +40,11 @@ export default function CompanySettingsScreen() {
   const [standardWorkDays, setStandardWorkDays] = useState<number[] | null>(null);
   const [standardStartTime, setStandardStartTime] = useState('');
   const [standardEndTime, setStandardEndTime] = useState('');
+  const [attendanceMode, setAttendanceMode] = useState<'QR' | 'LOCATION' | null>(null);
+  const [mealBreakEnabled, setMealBreakEnabled] = useState<boolean | null>(null);
+  const [mealBreakLimit, setMealBreakLimit] = useState('');
+  const [remindersEnabled, setRemindersEnabled] = useState<boolean | null>(null);
+  const [reminderMinutes, setReminderMinutes] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -48,6 +58,7 @@ export default function CompanySettingsScreen() {
 
   const activeMode = workScheduleMode ?? company.workScheduleMode;
   const activeDays = standardWorkDays ?? company.standardWorkDays ?? [1, 2, 3, 4, 5];
+  const activeAttendance = attendanceMode ?? company.attendanceMode ?? 'QR';
 
   const toggleDay = (day: number) => {
     const current = [...activeDays];
@@ -69,6 +80,15 @@ export default function CompanySettingsScreen() {
         standardWorkDays: standardWorkDays ?? company.standardWorkDays,
         standardStartTime: standardStartTime || company.standardStartTime,
         standardEndTime: standardEndTime || company.standardEndTime,
+        attendanceMode: attendanceMode ?? company.attendanceMode,
+        mealBreakEnabled: mealBreakEnabled ?? company.mealBreakEnabled,
+        mealBreakLimitMinutes: mealBreakLimit
+          ? parseInt(mealBreakLimit, 10)
+          : company.mealBreakLimitMinutes,
+        attendanceRemindersEnabled: remindersEnabled ?? company.attendanceRemindersEnabled,
+        reminderMinutesBefore: reminderMinutes
+          ? parseInt(reminderMinutes, 10)
+          : company.reminderMinutesBefore,
       });
       setMsg('Ayarlar güncellendi');
       setDeviceBinding(null);
@@ -78,6 +98,11 @@ export default function CompanySettingsScreen() {
       setStandardWorkDays(null);
       setStandardStartTime('');
       setStandardEndTime('');
+      setAttendanceMode(null);
+      setMealBreakEnabled(null);
+      setMealBreakLimit('');
+      setRemindersEnabled(null);
+      setReminderMinutes('');
       await load();
     } catch {
       setMsg('Kayıt başarısız');
@@ -121,6 +146,64 @@ export default function CompanySettingsScreen() {
 
         <Button title="Kaydet" onPress={save} loading={busy} />
         {msg ? <Text style={screen.msg}>{msg}</Text> : null}
+      </Card>
+
+      <Card style={{ gap: 12, marginBottom: 12 }}>
+        <Text style={{ fontWeight: '600', color: theme.colors.text }}>Devam & yemek</Text>
+
+        <Text style={screen.label}>Devam modu</Text>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {(['QR', 'LOCATION'] as const).map((mode) => (
+            <TouchableOpacity key={mode} onPress={() => setAttendanceMode(mode)}>
+              <Chip
+                label={mode === 'QR' ? 'QR + konum' : 'Sadece konum'}
+                tone={activeAttendance === mode ? 'primary' : 'default'}
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={screen.label}>Yemek molası</Text>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {[true, false].map((v) => (
+            <TouchableOpacity key={String(v)} onPress={() => setMealBreakEnabled(v)}>
+              <Chip
+                label={v ? 'Açık' : 'Kapalı'}
+                tone={(mealBreakEnabled ?? company.mealBreakEnabled) === v ? 'primary' : 'default'}
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={screen.label}>Yemek limiti (dk)</Text>
+        <FormInput
+          keyboardType="number-pad"
+          placeholder={String(company.mealBreakLimitMinutes ?? 60)}
+          value={mealBreakLimit}
+          onChangeText={setMealBreakLimit}
+        />
+
+        <Text style={screen.label}>Hatırlatmalar</Text>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {[true, false].map((v) => (
+            <TouchableOpacity key={String(v)} onPress={() => setRemindersEnabled(v)}>
+              <Chip
+                label={v ? 'Açık' : 'Kapalı'}
+                tone={(remindersEnabled ?? company.attendanceRemindersEnabled) === v ? 'primary' : 'default'}
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={screen.label}>Hatırlatma (dk önce)</Text>
+        <FormInput
+          keyboardType="number-pad"
+          placeholder={String(company.reminderMinutesBefore ?? 10)}
+          value={reminderMinutes}
+          onChangeText={setReminderMinutes}
+        />
+
+        <Button title="Devam ayarlarını kaydet" onPress={save} loading={busy} variant="secondary" />
       </Card>
 
       <Card style={{ gap: 12 }}>

@@ -21,6 +21,13 @@ enum UserRole {
 enum AttendanceType {
   CHECK_IN
   CHECK_OUT
+  MEAL_START
+  MEAL_END
+}
+
+enum AttendanceMode {
+  QR
+  LOCATION
 }
 
 enum LeaveType {
@@ -221,6 +228,11 @@ model Company {
   standardWorkDays    String   @default("1,2,3,4,5")
   standardStartTime   String   @default("09:00")
   standardEndTime     String   @default("18:00")
+  attendanceMode      AttendanceMode @default(QR)
+  mealBreakEnabled    Boolean  @default(true)
+  mealBreakLimitMinutes Int    @default(60)
+  attendanceRemindersEnabled Boolean @default(true)
+  reminderMinutesBefore Int    @default(10)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

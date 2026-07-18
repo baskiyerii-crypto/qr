@@ -36,14 +36,32 @@ export function AttendancePage() {
     {
       key: 'type',
       header: 'İşlem',
-      render: (r) => (
-        <div className="flex items-center gap-1">
-          <Badge variant={r.type === 'CHECK_IN' ? 'success' : 'info'} dot>
-            {r.type === 'CHECK_IN' ? 'Giriş' : 'Çıkış'}
-          </Badge>
-          {r.isManual && <Badge>Manuel</Badge>}
-        </div>
-      ),
+      render: (r) => {
+        const label =
+          r.type === 'CHECK_IN'
+            ? 'Giriş'
+            : r.type === 'CHECK_OUT'
+              ? 'Çıkış'
+              : r.type === 'MEAL_START'
+                ? 'Yemeğe çıkış'
+                : r.type === 'MEAL_END'
+                  ? 'Yemekten dönüş'
+                  : r.type;
+        const variant =
+          r.type === 'CHECK_IN' || r.type === 'MEAL_END'
+            ? 'success'
+            : r.type === 'MEAL_START'
+              ? 'warning'
+              : 'info';
+        return (
+          <div className="flex items-center gap-1">
+            <Badge variant={variant} dot>
+              {label}
+            </Badge>
+            {r.isManual && <Badge>Manuel</Badge>}
+          </div>
+        );
+      },
     },
     { key: 'branch', header: 'Şube', render: (r) => r.branch.name },
     {

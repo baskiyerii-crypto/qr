@@ -7,7 +7,13 @@ export declare enum UserRole {
 }
 export declare enum AttendanceType {
     CHECK_IN = "CHECK_IN",
-    CHECK_OUT = "CHECK_OUT"
+    CHECK_OUT = "CHECK_OUT",
+    MEAL_START = "MEAL_START",
+    MEAL_END = "MEAL_END"
+}
+export declare enum AttendanceMode {
+    QR = "QR",
+    LOCATION = "LOCATION"
 }
 export declare enum LeaveType {
     ANNUAL = "ANNUAL",

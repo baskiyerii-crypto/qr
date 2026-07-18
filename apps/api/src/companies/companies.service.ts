@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto';
 import * as QRCode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBranchInput, CompanySettingsInput, QR_ROTATION_WINDOW_SECONDS } from '@qr/shared';
-import { WorkScheduleMode } from '@prisma/client';
+import { AttendanceMode, WorkScheduleMode } from '@prisma/client';
 import { BranchScope } from '../common/decorators';
 import { canAccessBranch } from '../common/branch-scope';
 import { currentQrWindow, generateBranchQrToken } from '../common/qr';
@@ -32,6 +32,11 @@ export class CompaniesService {
       standardWorkDays?: string;
       standardStartTime?: string;
       standardEndTime?: string;
+      attendanceMode?: AttendanceMode;
+      mealBreakEnabled?: boolean;
+      mealBreakLimitMinutes?: number;
+      attendanceRemindersEnabled?: boolean;
+      reminderMinutesBefore?: number;
     } = {};
 
     if (data.deviceBindingEnabled !== undefined) update.deviceBindingEnabled = data.deviceBindingEnabled;
@@ -41,6 +46,13 @@ export class CompaniesService {
     if (data.standardWorkDays !== undefined) update.standardWorkDays = data.standardWorkDays.join(',');
     if (data.standardStartTime !== undefined) update.standardStartTime = data.standardStartTime;
     if (data.standardEndTime !== undefined) update.standardEndTime = data.standardEndTime;
+    if (data.attendanceMode !== undefined) update.attendanceMode = data.attendanceMode;
+    if (data.mealBreakEnabled !== undefined) update.mealBreakEnabled = data.mealBreakEnabled;
+    if (data.mealBreakLimitMinutes !== undefined) update.mealBreakLimitMinutes = data.mealBreakLimitMinutes;
+    if (data.attendanceRemindersEnabled !== undefined) {
+      update.attendanceRemindersEnabled = data.attendanceRemindersEnabled;
+    }
+    if (data.reminderMinutesBefore !== undefined) update.reminderMinutesBefore = data.reminderMinutesBefore;
 
     const company = await this.prisma.company.update({ where: { id: companyId }, data: update });
     return {

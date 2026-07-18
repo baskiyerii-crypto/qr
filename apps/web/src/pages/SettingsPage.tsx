@@ -32,6 +32,11 @@ export function SettingsPage() {
       standardWorkDays: number[];
       standardStartTime: string;
       standardEndTime: string;
+      attendanceMode: 'QR' | 'LOCATION';
+      mealBreakEnabled: boolean;
+      mealBreakLimitMinutes: number;
+      attendanceRemindersEnabled: boolean;
+      reminderMinutesBefore: number;
     }>('/companies/me'),
   });
 
@@ -47,6 +52,11 @@ export function SettingsPage() {
   const [standardWorkDays, setStandardWorkDays] = useState<number[] | null>(null);
   const [standardStartTime, setStandardStartTime] = useState('');
   const [standardEndTime, setStandardEndTime] = useState('');
+  const [attendanceMode, setAttendanceMode] = useState<'QR' | 'LOCATION' | null>(null);
+  const [mealBreakEnabled, setMealBreakEnabled] = useState<boolean | null>(null);
+  const [mealBreakLimit, setMealBreakLimit] = useState('');
+  const [remindersEnabled, setRemindersEnabled] = useState<boolean | null>(null);
+  const [reminderMinutes, setReminderMinutes] = useState('');
 
   const save = useMutation({
     mutationFn: () =>
@@ -58,6 +68,15 @@ export function SettingsPage() {
         standardWorkDays: standardWorkDays ?? company?.standardWorkDays,
         standardStartTime: standardStartTime || company?.standardStartTime,
         standardEndTime: standardEndTime || company?.standardEndTime,
+        attendanceMode: attendanceMode ?? company?.attendanceMode,
+        mealBreakEnabled: mealBreakEnabled ?? company?.mealBreakEnabled,
+        mealBreakLimitMinutes: mealBreakLimit
+          ? parseInt(mealBreakLimit)
+          : company?.mealBreakLimitMinutes,
+        attendanceRemindersEnabled: remindersEnabled ?? company?.attendanceRemindersEnabled,
+        reminderMinutesBefore: reminderMinutes
+          ? parseInt(reminderMinutes)
+          : company?.reminderMinutesBefore,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['company'] });
@@ -68,6 +87,11 @@ export function SettingsPage() {
       setStandardWorkDays(null);
       setStandardStartTime('');
       setStandardEndTime('');
+      setAttendanceMode(null);
+      setMealBreakEnabled(null);
+      setMealBreakLimit('');
+      setRemindersEnabled(null);
+      setReminderMinutes('');
     },
   });
 
@@ -164,6 +188,67 @@ export function SettingsPage() {
         </div>
         <Button className="mt-4" onClick={() => save.mutate()} disabled={save.isPending}>
           {save.isPending ? 'Kaydediliyor...' : 'Çalışma düzenini kaydet'}
+        </Button>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Devam, Yemek & Hatırlatmalar</CardTitle>
+        </CardHeader>
+        <p className="mb-4 text-sm text-slate-500">
+          QR istemeyen işletmeler konumla giriş-çıkış seçebilir. Yemek molası QR gerektirmez.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Devam modu" className="sm:col-span-2">
+            <Select
+              value={attendanceMode ?? company?.attendanceMode ?? 'QR'}
+              onChange={(e) => setAttendanceMode(e.target.value as 'QR' | 'LOCATION')}
+            >
+              <option value="QR">QR + konum</option>
+              <option value="LOCATION">Sadece konum (QR yok)</option>
+            </Select>
+          </Field>
+          <Field label="Yemek molası">
+            <Select
+              value={String(mealBreakEnabled ?? company?.mealBreakEnabled ?? true)}
+              onChange={(e) => setMealBreakEnabled(e.target.value === 'true')}
+            >
+              <option value="true">Açık</option>
+              <option value="false">Kapalı</option>
+            </Select>
+          </Field>
+          <Field label="Günlük yemek limiti (dk)">
+            <Input
+              type="number"
+              min={15}
+              max={180}
+              placeholder={String(company?.mealBreakLimitMinutes ?? 60)}
+              value={mealBreakLimit}
+              onChange={(e) => setMealBreakLimit(e.target.value)}
+            />
+          </Field>
+          <Field label="Giriş/çıkış hatırlatmaları">
+            <Select
+              value={String(remindersEnabled ?? company?.attendanceRemindersEnabled ?? true)}
+              onChange={(e) => setRemindersEnabled(e.target.value === 'true')}
+            >
+              <option value="true">Açık</option>
+              <option value="false">Kapalı</option>
+            </Select>
+          </Field>
+          <Field label="Hatırlatma (dk önce)">
+            <Input
+              type="number"
+              min={5}
+              max={60}
+              placeholder={String(company?.reminderMinutesBefore ?? 10)}
+              value={reminderMinutes}
+              onChange={(e) => setReminderMinutes(e.target.value)}
+            />
+          </Field>
+        </div>
+        <Button className="mt-4" onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending ? 'Kaydediliyor...' : 'Devam ayarlarını kaydet'}
         </Button>
       </Card>
 
