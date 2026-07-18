@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useSidebarStore } from '@/stores/sidebar';
 import { Avatar } from '@/components/ui/Avatar';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { InstallAppBanner } from '@/components/InstallAppBanner';
 import { shellThemes, type ShellVariant } from './shell-theme';
 
 export type { ShellVariant };
@@ -286,6 +287,7 @@ export function AppShell({
                 </div>
               </div>
             </div>
+            <InstallAppBanner />
           </header>
 
           <main className="mx-auto max-w-7xl p-4 sm:p-5 lg:p-7">{children}</main>

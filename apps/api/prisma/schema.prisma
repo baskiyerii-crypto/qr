@@ -317,6 +317,7 @@ model User {
   lastName     String
   phone        String?
   pushToken    String?
+  webPushSubscription String?
   isActive     Boolean  @default(true)
   refreshToken String?
   inviteToken  String?  @unique

@@ -89,6 +89,9 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
       WEB_APP_URL: ${WEB_APP_URL:-http://localhost}
       RUN_DB_SEED: ${RUN_DB_SEED:-false}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@localhost}
       EVOLUTION_API_URL: http://evolution-api:8080
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
       EVOLUTION_INSTANCE_NAME: ${EVOLUTION_INSTANCE_NAME:-qr-personel}

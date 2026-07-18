@@ -149,9 +149,25 @@ export const replyFeedbackSchema = z.object({
   body: z.string().min(1).max(5000),
 });
 
-export const registerPushTokenSchema = z.object({
-  pushToken: z.string().min(1),
-});
+export const registerPushTokenSchema = z
+  .object({
+    pushToken: z.string().min(1).optional().nullable(),
+    webPushSubscription: z
+      .object({
+        endpoint: z.string().url(),
+        expirationTime: z.number().nullable().optional(),
+        keys: z.object({
+          p256dh: z.string().min(1),
+          auth: z.string().min(1),
+        }),
+      })
+      .nullable()
+      .optional(),
+  })
+  .refine(
+    (d) => d.pushToken !== undefined || d.webPushSubscription !== undefined,
+    { message: 'pushToken veya webPushSubscription gerekli' },
+  );
 
 export const assignShiftSchema = z.object({
   shiftTemplateIds: z.array(z.string().uuid()).min(1),

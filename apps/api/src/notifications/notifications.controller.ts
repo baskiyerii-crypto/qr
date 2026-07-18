@@ -20,12 +20,23 @@ export class NotificationsController {
     };
   }
 
+  @Get('vapid-public-key')
+  async vapidPublicKey() {
+    return {
+      success: true,
+      data: { publicKey: this.notifications.getVapidPublicKey() },
+    };
+  }
+
   @Post('register-device')
   async registerDevice(@CurrentUser() user: JwtPayload, @Body() body: unknown) {
     const dto = registerPushTokenSchema.parse(body);
     return {
       success: true,
-      data: await this.notifications.registerPushToken(user.sub, dto.pushToken),
+      data: await this.notifications.registerDevice(user.sub, {
+        pushToken: dto.pushToken,
+        webPushSubscription: dto.webPushSubscription,
+      }),
     };
   }
 
