@@ -1009,6 +1009,13 @@ model PlatformSettings {
   iyzicoBaseUrl          String?
   webAppUrl              String?  @default("http://localhost:5173")
   requireEmployeeLocation Boolean @default(true)
+  brandTitle             String?
+  brandAddress           String?
+  brandIconUrl           String?
+  brandSubtitleCompany   String?
+  brandSubtitleAdmin     String?
+  brandSubtitleReseller  String?
+  brandSubtitleMarketer  String?
   updatedAt              DateTime @updatedAt
 }
 

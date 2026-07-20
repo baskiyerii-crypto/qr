@@ -1,5 +1,9 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
+import { randomBytes } from 'crypto';
 import { UserRole } from '@prisma/client';
 import { ResellersService } from '../resellers/resellers.service';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -107,6 +111,33 @@ export class AdminController {
     const dto = integrationsSettingsSchema.parse(body);
     const data = await this.platform.updateIntegrations(dto);
     return { success: true, data };
+  }
+
+  @Post('settings/branding/icon')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: join(process.cwd(), 'uploads'),
+        filename: (_req, file, cb) => {
+          const unique = `${Date.now()}-${randomBytes(6).toString('hex')}`;
+          cb(null, `brand-${unique}${extname(file.originalname)}`);
+        },
+      }),
+      limits: { fileSize: 2 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (/\.(png|jpg|jpeg|svg|webp|ico)$/i.test(file.originalname)) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('Sadece resim dosyaları yüklenebilir (png, jpg, svg, webp, ico)'), false);
+        }
+      },
+    }),
+  )
+  async uploadBrandingIcon(@UploadedFile() file?: { filename: string }) {
+    if (!file?.filename) throw new BadRequestException('Dosya gerekli');
+    const fileUrl = `/api/uploads/${file.filename}`;
+    await this.platform.updateSettings({ brandIconUrl: fileUrl });
+    return { success: true, data: { fileUrl } };
   }
 
   @Get('companies')

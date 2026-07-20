@@ -34,6 +34,7 @@ interface AppShellProps {
   variant?: ShellVariant;
   brandTitle: string;
   brandSubtitle: string;
+  brandIconUrl?: string | null;
   groups: NavGroup[];
   children: React.ReactNode;
 }
@@ -50,6 +51,7 @@ export function AppShell({
   variant = 'company',
   brandTitle,
   brandSubtitle,
+  brandIconUrl,
   groups,
   children,
 }: AppShellProps) {
@@ -99,11 +101,16 @@ export function AppShell({
         >
           <div
             className={cn(
-              'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white',
-              theme.brand,
+              'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl overflow-hidden',
+              !brandIconUrl && 'text-white',
+              !brandIconUrl && theme.brand,
             )}
           >
-            <QrCode className="h-[18px] w-[18px]" />
+            {brandIconUrl ? (
+              <img src={brandIconUrl} alt="" className="h-9 w-9 rounded-xl object-cover" />
+            ) : (
+              <QrCode className="h-[18px] w-[18px]" />
+            )}
           </div>
           {!isCollapsed && (
             <div className="min-w-0 flex-1">

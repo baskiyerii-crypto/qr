@@ -303,6 +303,13 @@ export class AdminPlatformService {
     defaultPlanId?: string | null;
     webAppUrl?: string;
     requireEmployeeLocation?: boolean;
+    brandTitle?: string | null;
+    brandAddress?: string | null;
+    brandIconUrl?: string | null;
+    brandSubtitleCompany?: string | null;
+    brandSubtitleAdmin?: string | null;
+    brandSubtitleReseller?: string | null;
+    brandSubtitleMarketer?: string | null;
   }) {
     return this.prisma.platformSettings.upsert({
       where: { id: 'default' },

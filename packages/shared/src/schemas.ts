@@ -374,6 +374,13 @@ export const platformSettingsSchema = z.object({
   defaultPlanId: z.string().uuid().nullable().optional(),
   webAppUrl: z.string().optional(),
   requireEmployeeLocation: z.boolean().optional(),
+  brandTitle: z.string().max(100).nullable().optional(),
+  brandAddress: z.string().max(500).nullable().optional(),
+  brandIconUrl: z.string().nullable().optional(),
+  brandSubtitleCompany: z.string().max(100).nullable().optional(),
+  brandSubtitleAdmin: z.string().max(100).nullable().optional(),
+  brandSubtitleReseller: z.string().max(100).nullable().optional(),
+  brandSubtitleMarketer: z.string().max(100).nullable().optional(),
 });
 
 export const integrationsSettingsSchema = z.object({

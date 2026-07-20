@@ -14,6 +14,13 @@ export class PlatformController {
       success: true,
       data: {
         requireEmployeeLocation: settings?.requireEmployeeLocation !== false,
+        brandTitle: settings?.brandTitle ?? null,
+        brandAddress: settings?.brandAddress ?? null,
+        brandIconUrl: settings?.brandIconUrl ?? null,
+        brandSubtitleCompany: settings?.brandSubtitleCompany ?? null,
+        brandSubtitleAdmin: settings?.brandSubtitleAdmin ?? null,
+        brandSubtitleReseller: settings?.brandSubtitleReseller ?? null,
+        brandSubtitleMarketer: settings?.brandSubtitleMarketer ?? null,
       },
     };
   }

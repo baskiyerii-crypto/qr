@@ -1,5 +1,6 @@
 import { LayoutDashboard, Building2, Store, TrendingUp, Receipt, MessageCircle } from 'lucide-react';
 import { AppShell, type NavGroup } from './AppShell';
+import { usePlatformConfig } from '@/hooks/usePlatformConfig';
 
 const groups: NavGroup[] = [
   {
@@ -15,8 +16,15 @@ const groups: NavGroup[] = [
 ];
 
 export function MarketerLayout({ children }: { children: React.ReactNode }) {
+  const { data: config } = usePlatformConfig();
   return (
-    <AppShell variant="marketer" brandTitle="Pazarlamacı Paneli" brandSubtitle="QR Personel" groups={groups}>
+    <AppShell
+      variant="marketer"
+      brandTitle={config?.brandSubtitleMarketer || 'Pazarlamacı Paneli'}
+      brandSubtitle={config?.brandTitle || 'QR Personel'}
+      brandIconUrl={config?.brandIconUrl}
+      groups={groups}
+    >
       {children}
     </AppShell>
   );

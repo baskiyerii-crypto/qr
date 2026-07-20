@@ -15,6 +15,7 @@ import {
   Network,
 } from 'lucide-react';
 import { AppShell, type NavGroup } from './AppShell';
+import { usePlatformConfig } from '@/hooks/usePlatformConfig';
 
 const groups: NavGroup[] = [
   {
@@ -55,8 +56,15 @@ const groups: NavGroup[] = [
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { data: config } = usePlatformConfig();
   return (
-    <AppShell variant="admin" brandTitle="Platform Admin" brandSubtitle="Süper Yönetici" groups={groups}>
+    <AppShell
+      variant="admin"
+      brandTitle={config?.brandTitle || 'Platform Admin'}
+      brandSubtitle={config?.brandSubtitleAdmin || 'Süper Yönetici'}
+      brandIconUrl={config?.brandIconUrl}
+      groups={groups}
+    >
       {children}
     </AppShell>
   );

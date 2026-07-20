@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { UserRole } from '@qr/shared';
 import { AppShell, type NavGroup } from './AppShell';
+import { usePlatformConfig } from '@/hooks/usePlatformConfig';
 
 const ADMIN = UserRole.COMPANY_ADMIN;
 const HR = UserRole.HR_MANAGER;
@@ -82,8 +83,15 @@ const groups: NavGroup[] = [
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
+  const { data: config } = usePlatformConfig();
   return (
-    <AppShell variant="company" brandTitle="QR Personel" brandSubtitle="Yönetim Paneli" groups={groups}>
+    <AppShell
+      variant="company"
+      brandTitle={config?.brandTitle || 'QR Personel'}
+      brandSubtitle={config?.brandSubtitleCompany || 'Yönetim Paneli'}
+      brandIconUrl={config?.brandIconUrl}
+      groups={groups}
+    >
       {children}
     </AppShell>
   );
